@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>SlugEnt.$(MSBuildProjectName)</AssemblyName>
+    <RootNamespace>SlugEnt</RootNamespace>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <ProduceReferenceAssembly>False</ProduceReferenceAssembly>
+    <Title>Internal Task Scheduler</Title>
+    <Authors>Scott Herrmann</Authors>
+    <Company>SlugEnt</Company>
+    <Description>A Library that provides internal scheduling and execution of tasks for an application</Description>
+    <Copyright>Scott Herrmann 2023</Copyright>
+    <PackageProjectUrl>https://github.com/SlugEnt/InternalTaskScheduler</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/SlugEnt/InternalTaskScheduler</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>Alpha Release.  Only Periodic or Elapsed Time based tasks are implemented</PackageReleaseNotes>
+    <PackageOutputPath>../../</PackageOutputPath>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\LICENSE">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
+    <PackageReference Include="SlugEnt.SortedBucketCollection" Version="1.0.0" />
+  </ItemGroup>
+
+</Project>
