@@ -38,6 +38,12 @@ public class InternalScheduledTask
 
 
     /// <summary>
+    /// If prior runs have failed due to some resource issue, this acts as kind of a circuit breaker, to delay the scheduling of the next run by some factor.
+    /// <para>This is set typically by the method that is running the actual task as it knows best what is going on.</para>
+    /// </summary>
+    public long ScheduleDelay { get; set; } = 0;
+
+    /// <summary>
     /// An object that can store data for a task between runs
     /// </summary>
     public Object TaskData { get; set; }
@@ -46,7 +52,7 @@ public class InternalScheduledTask
     /// <summary>
     /// The method to be run.
     /// </summary>
-    public Func<InternalScheduledTask, Task<bool>> TaskMethod { get; set; }
+    public Func<InternalScheduledTask, Task<EnumInternalTaskReturn>> TaskMethod { get; set; }
 
 
     /// <summary>
@@ -61,11 +67,6 @@ public class InternalScheduledTask
     public Guid Id { get; private set; }
 
 
-    /// <summary>
-    /// Data that can be stored for the internal task.  
-    /// </summary>
-    public Object Data { get; set; }
-
 
     /// <summary>
     /// If true, the task has been scheduled to run.  Note:  NextScheduleRunTime only indicates the next time IT should run.  It does not indicate IF it has been scheduled.  This flag determines that.
@@ -79,7 +80,8 @@ public class InternalScheduledTask
     /// <param name="name">Name of this task</param>
     /// <param name="methodToRun">The method to run.  It must accept an object and return a bool indicating success or failure</param>
     /// <param name="runInterval">How often it should run, so, every x minutes for example</param>
-    public InternalScheduledTask(string name, Func<InternalScheduledTask, Task<bool>> methodToRun, TimeSpan runInterval) : this(name, methodToRun,
+    public InternalScheduledTask(string name, Func<InternalScheduledTask, Task<EnumInternalTaskReturn>> methodToRun, TimeSpan runInterval) : this(name,
+     methodToRun,
      EnumScheduledTaskType.Normal_ElapsedTime)
     {
         RunInterval = runInterval;
@@ -94,7 +96,7 @@ public class InternalScheduledTask
     /// <param name="name">Name of this task</param>
     /// <param name="methodToRun">The method to run.  It must accept an object and return a bool indicating success or failure</param>
     /// <param name="scheduledTaskType">What type of scheduling algorithm to use.</param>
-    public InternalScheduledTask(string name, Func<InternalScheduledTask, Task<bool>> methodToRun, EnumScheduledTaskType scheduledTaskType)
+    public InternalScheduledTask(string name, Func<InternalScheduledTask, Task<EnumInternalTaskReturn>> methodToRun, EnumScheduledTaskType scheduledTaskType)
     {
         Name              = name;
         TaskMethod        = methodToRun;

@@ -202,7 +202,6 @@ public class InternalTaskScheduler
         {
             await internalScheduledTask.TaskMethod(internalScheduledTask);
 
-
             // Re-schedule the task for next run.
             internalScheduledTask.SetNextRunTime();
         }

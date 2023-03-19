@@ -87,9 +87,9 @@ public class Test_InternalTasks
     /// </summary>
     /// <param name="internalScheduledTask"></param>
     /// <returns></returns>
-    private Task<bool> TestTaskMethod(InternalScheduledTask internalScheduledTask)
+    private Task<EnumInternalTaskReturn> TestTaskMethod(InternalScheduledTask internalScheduledTask)
     {
         Task.Delay(1000);
-        return Task.FromResult(true);
+        return Task.FromResult(EnumInternalTaskReturn.Success);
     }
 }
