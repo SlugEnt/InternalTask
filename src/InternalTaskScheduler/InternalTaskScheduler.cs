@@ -43,6 +43,12 @@ public class InternalTaskScheduler
 
 
     /// <summary>
+    /// If true, tasks will be run in parallel
+    /// </summary>
+    public bool RunTasksInParallel { get; set; } = true;
+
+
+    /// <summary>
     /// This is the timeout value for acquiring a lock on the UpcomingTasks Collection.  You should not typically need to change this.  
     /// </summary>
     public int InternalSchedulerWaitTimeout { get; set; } = 3000;
@@ -140,8 +146,7 @@ public class InternalTaskScheduler
                 {
                     if (internalScheduledTask.NextScheduledRunTime <= current)
                     {
-                        Task t = RunScheduledTask(internalScheduledTask);
-                        ExecutedTaskCount++;
+                        Task t = new Task(() => RunScheduledTask(internalScheduledTask));
                         tasks.Add(t);
                     }
                     else
@@ -153,6 +158,31 @@ public class InternalTaskScheduler
             _lockUpcomingTasks.Release();
             locked = false;
 
+
+            // The tasks need to be started.  
+            foreach (Task task in tasks)
+            {
+                ExecutedTaskCount++;
+
+                if (RunTasksInParallel)
+                {
+                    task.Start();
+                    continue;
+                }
+
+                task.RunSynchronously();
+
+                // We are running each task one at a time. 
+                // TODO - Can set a time out
+                CancellationToken token = new CancellationToken();
+
+                //sk.Wait();
+
+
+//              task.Wait(5000);
+
+                //await task.WaitAsync(token);
+            }
 
             await Task.WhenAll(tasks);
         }
@@ -201,9 +231,6 @@ public class InternalTaskScheduler
         try
         {
             await internalScheduledTask.TaskMethod(internalScheduledTask);
-
-            // Re-schedule the task for next run.
-            internalScheduledTask.SetNextRunTime();
         }
         catch (Exception ex)
         {
@@ -215,6 +242,9 @@ public class InternalTaskScheduler
         // Schedule the next running of this task.
         try
         {
+            // Re-schedule the task for next run.
+            internalScheduledTask.SetNextRunTime();
+
             bool success = await _lockUpcomingTasks.WaitAsync(InternalSchedulerWaitTimeout);
             if (!success)
             {

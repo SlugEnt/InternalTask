@@ -52,7 +52,7 @@ public class Test_InternalTasks
     /// </summary>
     /// <returns></returns>
     [Test]
-    public async Task ScheduledTaskInFutureAfteRun()
+    public async Task ScheduledTaskInFutureAfterRun()
     {
         InternalTaskScheduler scheduler = new InternalTaskScheduler();
 
@@ -80,6 +80,7 @@ public class Test_InternalTasks
         Assert.Less(DateTime.Now, task.NextScheduledRunTime, "A10:");
         Assert.IsFalse(task.IsScheduled, "A20:");
     }
+
 
 
     /// <summary>
