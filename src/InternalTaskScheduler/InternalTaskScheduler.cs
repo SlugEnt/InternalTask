@@ -79,6 +79,12 @@ public class InternalTaskScheduler
 
 
     /// <summary>
+    /// True, if the Check Tasks process is running
+    /// </summary>
+    public bool IsCheckTasksProcessRunning { get; protected set; }
+
+
+    /// <summary>
     /// Adds the given task to the Scheduled Task List and schedules it.
     /// </summary>
     /// <param name="task"></param>
@@ -124,6 +130,10 @@ public class InternalTaskScheduler
     /// </summary>
     public async Task CheckTasks()
     {
+        if (IsCheckTasksProcessRunning)
+            return;
+
+
         List<Task>                  tasks       = new List<Task>();
         DateTime                    current     = DateTime.Now;
         List<InternalScheduledTask> removeTasks = new List<InternalScheduledTask>();
@@ -131,6 +141,8 @@ public class InternalTaskScheduler
 
         try
         {
+            IsCheckTasksProcessRunning = true;
+
             bool success = await _lockUpcomingTasks.WaitAsync(InternalSchedulerWaitTimeout);
             if (!success)
             {
@@ -191,6 +203,10 @@ public class InternalTaskScheduler
             Console.WriteLine(ex.ToString());
             if (locked)
                 _lockUpcomingTasks.Release();
+        }
+        finally
+        {
+            IsCheckTasksProcessRunning = false;
         }
     }
 
