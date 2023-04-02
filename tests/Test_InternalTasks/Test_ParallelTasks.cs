@@ -120,6 +120,9 @@ public class Test_ParallelTasks
             _task3Running = true;
         }
 
+        await DelayTime(taskDelay);
+
+
         Thread.Sleep(taskDelay);
 
 
@@ -135,4 +138,7 @@ public class Test_ParallelTasks
         */
         return EnumInternalTaskReturn.Success;
     }
+
+
+    private async Task DelayTime(int ms) { await Task.Delay(ms); }
 }

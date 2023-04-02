@@ -20,7 +20,7 @@
     <PackageReleaseNotes>Alpha Release.  Only Periodic or Elapsed Time based tasks are implemented</PackageReleaseNotes>
     <PackageOutputPath>../../</PackageOutputPath>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <Version>1.0.4</Version>
+    <Version>1.0.8</Version>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Collections;
+using System.Net.Sockets;
+using Microsoft.Extensions.Logging;
 using SlugEnt;
 
 namespace SlugEnt;
@@ -134,10 +136,11 @@ public class InternalTaskScheduler
             return;
 
 
-        List<Task>                  tasks       = new List<Task>();
-        DateTime                    current     = DateTime.Now;
-        List<InternalScheduledTask> removeTasks = new List<InternalScheduledTask>();
-        bool                        locked      = false;
+        List<Task>                   tasks       = new List<Task>();
+        DateTime                     current     = DateTime.Now;
+        List<InternalScheduledTask>  removeTasks = new List<InternalScheduledTask>();
+        Queue<InternalScheduledTask> queuedTasks = new();
+        bool                         locked      = false;
 
         try
         {
@@ -151,52 +154,60 @@ public class InternalTaskScheduler
                 return;
             }
 
-            locked = true;
 
+            // Check all internal tasks, see if any need to run and then add them to a queue to be run
+            locked = true;
             {
                 foreach (InternalScheduledTask internalScheduledTask in _upcomingTasks)
                 {
                     if (internalScheduledTask.NextScheduledRunTime <= current)
-                    {
-                        Task t = new Task(() => RunScheduledTask(internalScheduledTask));
-                        tasks.Add(t);
-                    }
+                        queuedTasks.Enqueue(internalScheduledTask);
                     else
 
                         // Exit the foreach as none of the remaining items meet the time criteria
                         break;
                 }
             }
+
+
+            // Clear the upcoming tasks we just processed.
+            foreach (InternalScheduledTask internalScheduledTask in queuedTasks)
+            {
+                _upcomingTasks.Remove(internalScheduledTask);
+            }
+
             _lockUpcomingTasks.Release();
             locked = false;
 
 
-            // The tasks need to be started.  
-            foreach (Task task in tasks)
+            // Run normal if in parallel
+            if (RunTasksInParallel)
             {
-                ExecutedTaskCount++;
-
-                if (RunTasksInParallel)
+                List<InternalScheduledTask> runningTasks = new();
+                while (queuedTasks.TryDequeue(out InternalScheduledTask internalScheduledTask))
                 {
-                    task.Start();
-                    continue;
+                    Task task = Task.Run(() => internalScheduledTask.TaskMethod(internalScheduledTask));
+                    tasks.Add(task);
+                    runningTasks.Add(internalScheduledTask);
+                    ExecutedTaskCount++;
                 }
 
-                task.RunSynchronously();
-
-                // We are running each task one at a time. 
-                // TODO - Can set a time out
-                CancellationToken token = new CancellationToken();
-
-                //sk.Wait();
-
-
-//              task.Wait(5000);
-
-                //await task.WaitAsync(token);
+                await Task.WhenAll(tasks);
+                foreach (InternalScheduledTask internalScheduledTask in runningTasks)
+                    ScheduleNextRunTimeForTask(internalScheduledTask);
             }
 
-            await Task.WhenAll(tasks);
+            // Run, one at a time.
+            else
+            {
+                while (queuedTasks.TryDequeue(out InternalScheduledTask internalScheduledTask))
+                {
+                    Task task = Task.Run(() => internalScheduledTask.TaskMethod(internalScheduledTask));
+                    await task.ConfigureAwait(false);
+                    ExecutedTaskCount++;
+                    ScheduleNextRunTimeForTask(internalScheduledTask);
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -213,55 +224,18 @@ public class InternalTaskScheduler
 
 
     /// <summary>
-    /// Runs a single task.  Then reschedules it when completed
+    /// Schedules the next run time for the taskk
     /// </summary>
-    /// <param name="taskObject"></param>
-    private async Task RunScheduledTask(Object taskObject)
+    /// <param name="internalScheduledTask"></param>
+    protected void ScheduleNextRunTimeForTask(InternalScheduledTask internalScheduledTask)
     {
-        InternalScheduledTask internalScheduledTask = taskObject as InternalScheduledTask;
-
-        // Remove the scheduled task as we are running now!
         bool locked = false;
-        try
-        {
-            bool success = await _lockUpcomingTasks.WaitAsync(InternalSchedulerWaitTimeout);
-            if (!success)
-            {
-                _logger.LogError($"Timeout waiting for the _lockUpcomingTasks lock to be free.  Scheduled Task {internalScheduledTask.Name} will not run this cycle.");
-                return;
-            }
-
-            locked = true;
-            _upcomingTasks.Remove(internalScheduledTask);
-            _lockUpcomingTasks.Release();
-            locked = false;
-        }
-        catch (Exception ex)
-        {
-            if (locked)
-                _lockUpcomingTasks.Release();
-        }
-
-
-        // Run the task.
-        try
-        {
-            await internalScheduledTask.TaskMethod(internalScheduledTask);
-        }
-        catch (Exception ex)
-        {
-            if (_logger != null)
-                _logger.LogError($"RunScheduledTask encountered error running the task - {internalScheduledTask.Name}.", ex);
-        }
-
-
-        // Schedule the next running of this task.
         try
         {
             // Re-schedule the task for next run.
             internalScheduledTask.SetNextRunTime();
 
-            bool success = await _lockUpcomingTasks.WaitAsync(InternalSchedulerWaitTimeout);
+            bool success = _lockUpcomingTasks.Wait(InternalSchedulerWaitTimeout);
             if (!success)
             {
                 _logger.LogError($"Timeout waiting for the _lockUpcomingTasks lock to be free so that the Task {internalScheduledTask.Name} can be scheduled for its next run.");
@@ -282,6 +256,34 @@ public class InternalTaskScheduler
             if (locked)
                 _lockUpcomingTasks.Release();
             locked = false;
+        }
+    }
+
+
+    /// <summary>
+    /// Removes all tasks from upcoming and task lists.
+    /// </summary>
+    public void RemoveAllTasks()
+    {
+        try
+        {
+            bool success = _lockUpcomingTasks.Wait(InternalSchedulerWaitTimeout);
+            if (!success)
+            {
+                _logger.LogError("Failed to attain lock to delete tasks.");
+                return;
+            }
+
+            _upcomingTasks.Clear();
+            _tasks.Clear();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex.Message, ex);
+        }
+        finally
+        {
+            _lockUpcomingTasks.Release();
         }
     }
 }
